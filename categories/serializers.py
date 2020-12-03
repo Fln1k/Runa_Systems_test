@@ -18,6 +18,7 @@ class DynamicFieldsModelSerializer(serializers.ModelSerializer):
 class CategorySerializer(DynamicFieldsModelSerializer):
     id = serializers.IntegerField
     name = serializers.CharField(max_length=120)
+    parent_id = serializers.CharField(max_length=120,required=False)
     parent = serializers.SerializerMethodField(
         read_only=True, method_name="get_parent"
     )
@@ -30,28 +31,32 @@ class CategorySerializer(DynamicFieldsModelSerializer):
 
     class Meta:
         model = Category
-        fields = ('id', 'name', 'parent', 'children', 'siblings')
+        fields = ('id', 'name', 'parent', 'children', 'siblings', 'parent_id')
+
+    def create(self, validated_data):
+        return Category.objects.create(**validated_data)
 
     def get_parent(self, obj):
         try:
-            parent_id = obj.parent.id
+            parent_name = obj.parent.name
         except AttributeError:
             return {}
-        parent_queryset = Category.objects.filter(id=parent_id)
+        parent_queryset = Category.objects.filter(name=parent_name)
         return CategorySerializer(parent_queryset, fields=('id', 'name', 'parent'), many=True).data
 
     def get_children(self, obj):
         try:
-            parent_id = obj.id
+            parent_name = obj.name
         except AttributeError:
             return {}
-        parent_queryset = Category.objects.filter(parent_id=parent_id)
+        parent_queryset = Category.objects.filter(parent_id=parent_name)
         return CategorySerializer(parent_queryset, fields=('id', 'name', 'children'), many=True).data
 
     def get_siblings(self, obj):
         try:
-            parent_id = obj.parent.id
+            parent_name = obj.parent.name
         except AttributeError:
             return {}
-        parent_queryset = Category.objects.filter(parent_id=parent_id).exclude(id=obj.id)
+        parent_queryset = Category.objects.filter(parent_id=parent_name).exclude(id=obj.id)
         return CategorySerializer(parent_queryset, fields=('id', 'name'), many=True).data
+
